@@ -4,14 +4,15 @@
 # téléphone virtuel Android 15 (le résultat s'affiche sur la page de téléchargement) :
 # https://github.com/lbrasselet-spec/Mesure-Photo/releases/download/apk/Mesure-Photo.apk
 # La clé de signature n'est pas dans le dépôt : elle est enregistrée dans le secret GitHub
-# MESURE_KEYSTORE_B64 (Settings > Secrets and variables > Actions). Sans ce secret, l'APK est
-# signé avec une clé provisoire et n'est PAS publié (version de contrôle uniquement).
+# MESURE_KEYSTORE_B64 (Settings > Secrets and variables > Actions). Sans ce secret, l'APK compilé
+# est une version de contrôle (clé provisoire) et GitHub publie à la place le fichier déjà signé
+# déposé dans publication/Mesure-Photo.apk (vérifié : même clé que les versions installées).
 name: Application Android
 
 on:
   push:
     branches: [main]
-    paths: ['index.html', 'android/**', '.github/workflows/apk.yml']
+    paths: ['index.html', 'android/**', 'publication/**', '.github/workflows/apk.yml']
   workflow_dispatch:
 
 permissions:
@@ -48,7 +49,7 @@ jobs:
             echo "SIGNATURE=stable" >> "$GITHUB_ENV"
           else
             echo "SIGNATURE=provisoire" >> "$GITHUB_ENV"
-            echo "::warning title=Signature provisoire::Secret MESURE_KEYSTORE_B64 absent : APK de contrôle, non publié."
+            echo "::notice title=Signature::Secret MESURE_KEYSTORE_B64 absent : compilation de contrôle ; publication du fichier signé déposé dans publication/."
           fi
 
       - name: Compiler l'APK
@@ -60,9 +61,24 @@ jobs:
           cp android/Mesure-Photo.apk .
           echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
 
+      - name: Fichier signé déposé (sans secret)
+        if: env.SIGNATURE == 'provisoire'
+        shell: bash
+        run: |
+          EMPREINTE=e948504304606c9f29e1bce4b00ac86272bf57c5a9bc6d4e28bca4c3613ddeb8   # certificat de la clé du projet
+          if [ -f publication/Mesure-Photo.apk ]; then
+            apksigner verify --print-certs publication/Mesure-Photo.apk | grep -q "SHA-256 digest: $EMPREINTE" \
+              || { echo "::error title=Publication::publication/Mesure-Photo.apk n'est pas signé avec la clé du projet."; exit 1; }
+            cp publication/Mesure-Photo.apk Mesure-Photo.apk
+            V=$(aapt dump badging Mesure-Photo.apk | sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p")
+            echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
+            echo "SIGNATURE=deposee" >> "$GITHUB_ENV"
+            echo "::notice title=Publication::Fichier déposé publication/Mesure-Photo.apk (version $V), signé avec la clé du projet."
+          fi
+
       - name: Publier l'APK
         id: publier
-        if: env.SIGNATURE == 'stable'
+        if: env.SIGNATURE == 'stable' || env.SIGNATURE == 'deposee'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

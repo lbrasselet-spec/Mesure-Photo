@@ -13,4 +13,7 @@ puis envoi par mail, WhatsApp, Drive… ou enregistrement dans la galerie (album
 - `.github/workflows/apk.yml` : compilation, publication et essai automatique sur un téléphone virtuel
   Android 15 à chaque modification ; le résultat de l'essai s'affiche sur la page de téléchargement.
 
-La clé de signature n'est pas dans le dépôt : elle est enregistrée dans le secret GitHub `MESURE_KEYSTORE_B64`.
+- `publication/Mesure-Photo.apk` : l'APK signé publié derrière le lien ci-dessus (préparé avec la clé du projet).
+
+La clé de signature n'est pas dans le dépôt. Si le secret GitHub `MESURE_KEYSTORE_B64` est enregistré, GitHub signe et publie
+lui-même chaque nouvelle version ; sinon il publie le fichier signé déposé dans `publication/`.
