@@ -103,7 +103,7 @@ jobs:
           ok() { echo "OK — $1" >> "$R"; }
           ko() { echo "ÉCHEC — $1" >> "$R"; }
           haut() { adb shell dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity" | sed -E 's/.*\{[^ ]+ [^ ]+ ([^ }]+).*/\1/'; }
-          ecran() { adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb shell cat /sdcard/ui.xml > "$1" 2>/dev/null; }
+          ecran() { adb shell uiautomator dump /sdcard/ui.xml > dump.txt 2>&1; adb shell cat /sdcard/ui.xml > "$1" 2>/dev/null; }
           centre() { grep -o "text=\"$1\"[^>]*bounds=\"[^\"]*\"" "$2" | head -1 | sed -E 's/.*bounds="\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]".*/\1 \2 \3 \4/' | awk '{print int(($1+$3)/2), int(($2+$4)/2)}'; }
           retour() { for i in 1 2 3; do case "$(haut)" in "$P"*) return;; esac; adb shell input keyevent KEYCODE_BACK; sleep 3; done; }
 
@@ -112,6 +112,8 @@ jobs:
           adb shell input keyevent 82
           adb shell am start -W -n "$P/.MainActivity" > start.txt 2>&1
           sleep 15
+          adb logcat -d > logcat-debut.txt
+          if grep -q "Mesure Photo prête" logcat-debut.txt; then ok "Page de l'appli chargée ($(grep -o 'Mesure Photo prête[^\"]*' logcat-debut.txt | head -1))"; else ko "Page de l'appli non chargée"; fi
           ecran ui1.xml; sleep 4; ecran ui1.xml
           adb exec-out screencap -p > ecran-1-accueil.png
           if grep -q 'Prendre une photo' ui1.xml; then ok "Démarrage : page d'accueil affichée"; else ko "Démarrage : page d'accueil non trouvée ($(haut))"; fi
@@ -142,6 +144,13 @@ jobs:
           else ok "Aucun plantage de l'appli"; fi
           grep -E "chromium.*(Uncaught|SyntaxError|TypeError|ReferenceError)" logcat.txt | head -5 > js.txt
           if [ -s js.txt ]; then ko "Erreur dans la page : $(sed -n 1p js.txt | cut -c1-250)"; else ok "Aucune erreur JavaScript"; fi
+          {
+            echo "Démarrage : $(tr '\n' ' ' < start.txt | cut -c1-300)"
+            echo "Lecture de l'écran : $(tr '\n' ' ' < dump.txt | cut -c1-200) — $(wc -c < ui1.xml) octets, $(grep -o '<node' ui1.xml | wc -l) éléments"
+            echo "Textes lus : $(grep -o 'text="[^"]*"' ui1.xml | sed 's/text="//;s/"$//' | grep -v '^$' | head -15 | tr '\n' '|')"
+            echo "Journal de la page : $(grep -E 'CONSOLE|chromium' logcat.txt | tail -6 | cut -c1-220 | tr '\n' '|')"
+            echo "Journal de l'appli : $(grep -E "$P|AndroidRuntime" logcat.txt | tail -6 | cut -c1-220 | tr '\n' '|')"
+          } > diagnostic.txt
           exit 0
           FIN
 
@@ -169,6 +178,12 @@ jobs:
             printf '%s\n\nEssai automatique sur un téléphone virtuel Android 15 :\n%s\n' "$V" "$(sed 's/^/- /' resultats.txt)" > notes.md
             gh release edit apk -R "$GITHUB_REPOSITORY" --notes-file notes.md
           fi
+          [ -f diagnostic.txt ] && echo "::notice title=Diagnostic::$(sed 's/%/%25/g' diagnostic.txt | awk '{printf "%s%%0A", $0}')"
+          # captures d'écran de l'essai, consultables dans la branche « essais » du dépôt
+          D="$RUNNER_TEMP/essais"; mkdir -p "$D"; cp ecran-*.png resultats.txt diagnostic.txt ui1.xml "$D/" 2>/dev/null || true
+          ( cd "$D" && git init -q -b essais && git add -A \
+            && git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Essai Android 15 — exécution $GITHUB_RUN_NUMBER" \
+            && git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" essais ) || echo "::warning::Captures d'écran non déposées."
           if grep -q '^ÉCHEC' resultats.txt; then echo "::error title=Essai::Au moins un contrôle a échoué (voir ci-dessus)."; exit 1; fi
 
       - uses: actions/upload-artifact@v4

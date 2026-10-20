@@ -1007,6 +1007,7 @@ $('ver').textContent = 'Mesure Photo · v' + VERSION;
 buildChips(); updateUI(); refreshHome();
 const ses = native ? readSession() : null;
 if (ses && ses.ed) loadUrl(ses.url, ses.items, ses.dirty);   // l'appli avait été fermée pendant l'édition
+console.info('Mesure Photo prête — v' + VERSION);     // repère pour l'essai automatique
 if (native) { try { native.ready(); } catch (e) {} }
 })();
 </script>
