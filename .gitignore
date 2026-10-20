@@ -1,0 +1,4 @@
+android/build/
+android/keystore/
+android/res/mipmap-*dpi/
+*.apk

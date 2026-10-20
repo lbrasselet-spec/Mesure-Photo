@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f1317">
+<title>Mesure Photo</title>
+<!--
+  MESURE PHOTO — application de photos cotées (interface complète, fichier unique)
+  Fonctionne dans l'appli Android (pont « MPNative ») et, pour les essais, dans un navigateur.
+  Les réglages faciles à modifier sont regroupés en tête du script (RÉGLAGES).
+-->
+<style>
+:root{
+  --bg:#0f1317;--bar:#151b21;--panel:#1b2229;--panel2:#252e37;--line:#303b46;
+  --text:#eef2f6;--muted:#97a4b2;--accent:#ffd400;--ink:#14171a;--danger:#ff5a4f;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:16px/1.35 var(--font);overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.35;cursor:default}
+[hidden]{display:none!important}
+.i{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column}
+
+/* ---------- Accueil ---------- */
+#home{align-items:center;justify-content:center;gap:12px;padding:24px 20px 52px;background:radial-gradient(130% 75% at 50% 0%,#1d2832 0%,var(--bg) 62%)}
+.brand{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:26px}
+.brand h1{margin:14px 0 4px;font-size:30px;font-weight:800;letter-spacing:.2px}
+.brand p{margin:0;color:var(--muted);font-size:15px}
+.big{width:100%;max-width:380px;min-height:66px;display:flex;align-items:center;gap:14px;padding:10px 20px;border-radius:16px;background:var(--panel);border:1px solid var(--line);font-size:18px;font-weight:700;text-align:left}
+.big:active{filter:brightness(1.15)}
+.big.primary{background:var(--accent);color:var(--ink);border-color:transparent}
+.big .t{display:flex;flex-direction:column}
+.big small{font-size:13px;font-weight:500;color:var(--muted);margin-top:2px}
+.foot{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#66727f;font-size:12px}
+
+/* ---------- Éditeur ---------- */
+.topbar{flex:none;height:56px;display:flex;align-items:center;gap:6px;padding:0 6px;background:var(--bar);border-bottom:1px solid var(--line)}
+.ib{width:48px;height:48px;display:grid;place-items:center;border-radius:12px}
+.ib:active,.tool:active{background:var(--panel2)}
+.grow{flex:1}
+.seg{display:flex;padding:3px;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.seg button{min-width:50px;height:38px;padding:0 10px;border-radius:9px;font-weight:700;font-size:15px;color:var(--muted)}
+.seg button.on{background:var(--accent);color:var(--ink)}
+.save{height:44px;display:flex;align-items:center;gap:7px;padding:0 13px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-weight:700;font-size:15px}
+.save:active{background:var(--panel2)}
+@media (max-width:385px){.save .sl{display:none}.save{padding:0 11px}}
+#stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#0a0d10}
+#cv{position:absolute;left:0;top:0;display:block;touch-action:none}
+.float{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:2}
+#hint{max-width:calc(100% - 24px);width:max-content;padding:9px 14px;border-radius:999px;background:rgba(15,19,23,.88);border:1px solid var(--line);font-size:14px;text-align:center;pointer-events:none;opacity:0;transition:opacity .35s}
+#hint.show{opacity:1}
+#ctx{display:flex;gap:2px;padding:4px;border-radius:14px;background:rgba(27,34,41,.97);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+#ctx button{height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:10px;font-weight:700;font-size:15px;white-space:nowrap}
+#ctx button:active{background:var(--panel2)}
+#ctx .del{color:var(--danger)}
+#bFit{position:absolute;right:12px;bottom:12px;z-index:2;width:50px;height:50px;display:grid;place-items:center;border-radius:14px;background:rgba(27,34,41,.94);border:1px solid var(--line)}
+.toolbar{flex:none;height:76px;display:flex;gap:4px;padding:6px;background:var(--bar);border-top:1px solid var(--line)}
+.tool{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:12px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.tool.on{color:var(--accent);background:rgba(255,212,0,.13)}
+.tool.send{background:var(--accent);color:var(--ink)}
+.dot{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+
+/* ---------- Fenêtres ---------- */
+.modal{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:12px;background:rgba(0,0,0,.55)}
+.card{width:100%;max-width:460px;padding:16px;border-radius:18px;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 44px rgba(0,0,0,.55)}
+.card h2{margin:2px 0 12px;font-size:18px}
+.card p{margin:2px 0 14px;font-size:16px}
+.row{display:flex;align-items:center;gap:8px}
+.inp{width:100%;min-width:0;height:52px;padding:0 12px;border-radius:12px;background:#0d1115;border:2px solid var(--line);color:var(--text);font:500 18px var(--font);outline:none}
+.inp:focus{border-color:var(--accent)}
+.inp.num{flex:1;height:62px;font-size:30px;font-weight:800}
+textarea.inp{height:104px;padding:10px 12px;line-height:1.3;resize:none}
+.lbl{display:block;margin:14px 0 6px;font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{height:36px;padding:0 13px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:14px;font-weight:600}
+.chip.on{background:var(--accent);color:var(--ink);border-color:transparent}
+.err{min-height:20px;margin-top:8px;font-size:14px;color:var(--danger)}
+.actions{display:flex;gap:8px;margin-top:6px}
+.btn{height:50px;padding:0 16px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:16px}
+.btn.ok{flex:1;background:var(--accent);color:var(--ink);border-color:transparent}
+.btn.del{color:var(--danger)}
+.pop{position:fixed;inset:0;z-index:15}
+.popcard{position:absolute;right:8px;bottom:86px;padding:14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:0 16px 40px rgba(0,0,0,.55)}
+.ptitle{font-size:13px;color:var(--muted);margin:0 0 8px}
+.sws{display:grid;grid-template-columns:repeat(6,42px);gap:9px;margin-bottom:14px}
+.sw{width:42px;height:42px;border-radius:50%;border:2px solid rgba(255,255,255,.22)}
+.sw.on{box-shadow:0 0 0 3px var(--panel),0 0 0 5px var(--text)}
+#segSize button{flex:1}
+#busy{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,.62);font-weight:700}
+.spin{width:46px;height:46px;border-radius:50%;border:4px solid rgba(255,255,255,.18);border-top-color:var(--accent);animation:sp .85s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;bottom:100px;z-index:50;max-width:calc(100% - 32px);width:max-content;padding:12px 16px;border-radius:12px;background:#eef2f6;color:var(--ink);font-size:15px;font-weight:700;text-align:center;pointer-events:none;opacity:0;transform:translate(-50%,16px);transition:opacity .25s,transform .25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:var(--danger);color:#fff}
+</style>
+</head>
+<body>
+
+<!-- Pictogrammes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 9a1 1 0 0 1 1-1h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 15.5l-4.5-4.5L7 20"/></symbol>
+  <symbol id="i-res" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5v4h4"/><path d="M12 8v4.5l3 2"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14l-5-5 5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H10"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10.5l5 5 5-5"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></symbol>
+  <symbol id="i-cote" viewBox="0 0 24 24"><path d="M3 6v12M21 6v12M6.5 12h11"/><path d="M8.5 8.5L5 12l3.5 3.5M15.5 8.5L19 12l-3.5 3.5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M7.5 9h9M7.5 12.5h6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10 14"/><path d="M21 3l-6.5 18-4.5-7-7-4.5z"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4.5L20 8.5 15.5 4 4 15.5z"/><path d="M13 6.5l4.5 4.5"/></symbol>
+  <symbol id="i-del" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
+</svg>
+
+<!-- ============ ÉCRAN D'ACCUEIL ============ -->
+<section id="home" class="screen">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" width="78" height="78" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="61" height="61" rx="16" fill="#15202B" stroke="#303b46"/>
+      <path d="M15 22v-6h6M43 16h6v6M49 42v6h-6M21 48h-6v-6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M21 25v14M43 25v14M26 32h12" stroke="#FFD400" stroke-width="3" stroke-linecap="round"/>
+      <path d="M21.5 32l6.5-4.5v9zM42.5 32L36 27.5v9z" fill="#FFD400"/>
+    </svg>
+    <h1>Mesure Photo</h1>
+    <p>Photographiez, cotez, envoyez.</p>
+  </div>
+  <button type="button" id="bCam" class="big primary"><svg class="i"><use href="#i-cam"/></svg>Prendre une photo</button>
+  <button type="button" id="bGal" class="big"><svg class="i"><use href="#i-img"/></svg>Choisir dans la galerie</button>
+  <button type="button" id="bRes" class="big" hidden><svg class="i"><use href="#i-res"/></svg><span class="t">Reprendre la photo en cours<small id="resInfo"></small></span></button>
+  <div class="foot" id="ver"></div>
+</section>
+
+<!-- ============ ÉDITEUR ============ -->
+<section id="editor" class="screen" hidden>
+  <header class="topbar">
+    <button type="button" id="bHome" class="ib" aria-label="Retour à l’accueil"><svg class="i"><use href="#i-back"/></svg></button>
+    <div class="seg" aria-label="Unité"><button type="button" data-u="mm">mm</button><button type="button" data-u="cm">cm</button></div>
+    <div class="grow"></div>
+    <button type="button" id="bUndo" class="ib" aria-label="Annuler la dernière action"><svg class="i"><use href="#i-undo"/></svg></button>
+    <button type="button" id="bSave" class="save" aria-label="Enregistrer dans la galerie"><svg class="i"><use href="#i-save"/></svg><span class="sl">Enregistrer</span></button>
+  </header>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hint" class="float"></div>
+    <div id="ctx" class="float" hidden>
+      <button type="button" id="bEdit"><svg class="i"><use href="#i-edit"/></svg>Modifier</button>
+      <button type="button" id="bDel" class="del"><svg class="i"><use href="#i-del"/></svg>Supprimer</button>
+      <button type="button" id="bDesel" aria-label="Désélectionner"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <button type="button" id="bFit" aria-label="Voir toute la photo" hidden><svg class="i"><use href="#i-fit"/></svg></button>
+  </div>
+  <nav class="toolbar">
+    <button type="button" class="tool" data-tool="pan"><svg class="i"><use href="#i-move"/></svg>Déplacer</button>
+    <button type="button" class="tool" data-tool="cote"><svg class="i"><use href="#i-cote"/></svg>Cote</button>
+    <button type="button" class="tool" data-tool="note"><svg class="i"><use href="#i-note"/></svg>Note</button>
+    <button type="button" class="tool" id="bStyle"><span class="dot" id="dotCur"></span>Style</button>
+    <button type="button" class="tool send" id="bShare"><svg class="i"><use href="#i-send"/></svg>Envoyer</button>
+  </nav>
+</section>
+
+<!-- ============ FENÊTRES ============ -->
+<div id="dCote" class="modal" hidden>
+  <div class="card" role="dialog" aria-labelledby="dCoteT">
+    <h2 id="dCoteT">Nouvelle cote</h2>
+    <div class="row">
+      <input id="cVal" class="inp num" inputmode="decimal" autocomplete="off" placeholder="Valeur" enterkeyhint="done">
+      <div class="seg keep"><button type="button" data-u="mm">mm</button><button type="button" data-u="cm">cm</button></div>
+    </div>
+    <label class="lbl" for="cLab">Libellé (facultatif)</label>
+    <input id="cLab" class="inp" autocomplete="off" maxlength="40" placeholder="ex. Largeur échelle" enterkeyhint="done">
+    <div class="chips keep" id="chips"></div>
+    <div class="err" id="cErr"></div>
+    <div class="actions">
+      <button type="button" class="btn del" id="cDel">Supprimer</button>
+      <button type="button" class="btn" id="cNo">Annuler</button>
+      <button type="button" class="btn ok" id="cOk">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div id="dNote" class="modal" hidden>
+  <div class="card" role="dialog" aria-labelledby="dNoteT">
+    <h2 id="dNoteT">Nouvelle note</h2>
+    <textarea id="nTxt" class="inp" maxlength="200" placeholder="ex. Pas de perforation 50 mm"></textarea>
+    <div class="err" id="nErr"></div>
+    <div class="actions">
+      <button type="button" class="btn del" id="nDel">Supprimer</button>
+      <button type="button" class="btn" id="nNo">Annuler</button>
+      <button type="button" class="btn ok" id="nOk">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div id="dConf" class="modal" hidden>
+  <div class="card" role="alertdialog">
+    <p id="confMsg"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="confNo">Annuler</button>
+      <button type="button" class="btn ok" id="confYes">Continuer</button>
+    </div>
+  </div>
+</div>
+
+<div id="pStyle" class="pop" hidden>
+  <div class="popcard">
+    <div class="ptitle">Couleur</div>
+    <div class="sws" id="sws"></div>
+    <div class="ptitle">Taille des annotations</div>
+    <div class="seg" id="segSize"></div>
+  </div>
+</div>
+
+<div id="busy" hidden><div class="spin"></div><div id="busyMsg"></div></div>
+<div id="toast"></div>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fGal" accept="image/*" hidden>
+
+<script>
+(function () {
+'use strict';
+
+/* ======================= RÉGLAGES (modifiables) ======================= */
+const VERSION = '1.0';
+const MAX_SIDE = 4096;          // côté maximum de la photo de travail, en pixels
+const JPEG_QUALITY = 0.9;       // qualité de la photo envoyée (0 à 1)
+const COLORS = [                // couleurs proposées pour les annotations
+  ['#FFD400', 'Jaune'], ['#FF3B30', 'Rouge'], ['#00E676', 'Vert'],
+  ['#29B6FF', 'Bleu'], ['#FFFFFF', 'Blanc'], ['#111111', 'Noir'],
+];
+const SIZES = [[0.7, 'Petit'], [1, 'Normal'], [1.45, 'Grand']];
+const QUICK_LABELS = ['Hauteur', 'Largeur', 'Profondeur', 'Longueur', 'Ø'];
+const HINTS = {
+  cote: 'Glissez d’un point à l’autre · 2 doigts pour zoomer',
+  note: 'Touchez pour placer une note, ou glissez depuis le point visé',
+  pan: 'Glissez pour déplacer la photo · touchez une cote pour la choisir',
+};
+/* ===================================================================== */
+
+const native = window.MPNative || null;   // pont vers l'appli Android (absent dans un navigateur)
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const CHUNK = 1 << 20;                    // paquets de 1 Mo (multiple de 4) envoyés à Android
+const SKEY = 'mp.session', PKEY = 'mp.prefs';
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const nextFrame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+const pad2 = n => String(n).padStart(2, '0');
+
+/* ---------------- État de l'application ---------------- */
+const S = {
+  img: null, W: 0, H: 0, url: null,      // photo de travail (ImageBitmap) et son adresse locale
+  items: [], sel: null, tool: 'cote',    // annotations, annotation choisie, outil actif
+  unit: 'mm', color: COLORS[0][0], size: 1,
+  v: { s: 1, x: 0, y: 0 }, fitted: true, // vue : écran = image × s + (x, y)
+  dirty: false, undo: [], screen: 'home',
+};
+try {
+  const p = JSON.parse(localStorage.getItem(PKEY) || '{}');
+  if (p.unit === 'mm' || p.unit === 'cm') S.unit = p.unit;
+  if (COLORS.some(c => c[0] === p.color)) S.color = p.color;
+  if (SIZES.some(z => z[0] === p.size)) S.size = p.size;
+} catch (e) { /* préférences illisibles : valeurs par défaut */ }
+function savePrefs() {
+  try { localStorage.setItem(PKEY, JSON.stringify({ unit: S.unit, color: S.color, size: S.size })); } catch (e) {}
+}
+
+/* ---------------- Toile de dessin ---------------- */
+const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
+const mctx = document.createElement('canvas').getContext('2d');   // sert à mesurer les textes
+let dpr = 1, SW = 0, SH = 0;                                        // taille de la zone photo (px écran)
+const toImg = p => ({ x: (p.x - S.v.x) / S.v.s, y: (p.y - S.v.y) / S.v.s });
+const toScr = (x, y) => ({ x: x * S.v.s + S.v.x, y: y * S.v.s + S.v.y });
+const clampImg = q => ({ x: clamp(q.x, 0, S.W), y: clamp(q.y, 0, S.H) });
+
+/* Dimensions des annotations, proportionnelles à la photo (identiques à l'écran et à l'export) */
+function met(it) {
+  const k = Math.max(S.W, S.H) / 1000 * (it.s || 1);
+  return { lw: 4 * k, halo: 2.4 * k, ah: 20 * k, aw: 7.5 * k, tick: 12 * k, fs: 32 * k, pad: 10 * k, rad: 8 * k };
+}
+
+/* Couleur du texte et du liseré selon le fond (contraste maximal) */
+function lum(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255);
+}
+const inkFor = hex => { const L = lum(hex); return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? '#111111' : '#FFFFFF'; };
+const haloFor = hex => inkFor(hex) === '#111111' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.75)';
+
+/* ---------------- Valeurs et unités (stockage interne en mm) ---------------- */
+const nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, useGrouping: false });   // 2250 mm (usage cotation)
+function fmtVal(mm) {
+  if (mm == null) return '';
+  return S.unit === 'cm' ? nf.format(mm / 10) + ' cm' : nf.format(mm) + ' mm';
+}
+function inputVal(mm) {
+  if (mm == null) return '';
+  const v = S.unit === 'cm' ? mm / 10 : mm;
+  return String(Math.round(v * 10) / 10).replace('.', ',');
+}
+function parseVal(str) {           // renvoie des mm, null si vide, NaN si invalide
+  const t = String(str).replace(/[\s  ]/g, '').replace(',', '.');
+  if (!t) return null;
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(t)) return NaN;
+  const n = parseFloat(t);
+  return S.unit === 'cm' ? n * 10 : n;
+}
+
+/* ---------------- Mise en page des étiquettes ---------------- */
+function rowsFor(it) {             // lignes de texte : [texte, style] (b = gras, s = petit, n = normal)
+  if (it.t === 'note') return it.txt ? it.txt.split('\n').map(t => [t, 'n']) : [];
+  const val = fmtVal(it.mm), lab = (it.lab || '').trim();
+  if (lab && val) return lab.length <= 3 ? [[lab + ' ' + val, 'b']] : [[lab, 's'], [val, 'b']];
+  if (lab) return [[lab, 'b']];
+  if (val) return [[val, 'b']];
+  return [];
+}
+function fontFor(st, fs) {
+  return st === 'b' ? '700 ' + fs + 'px ' + FONT : st === 's' ? '600 ' + (fs * 0.74) + 'px ' + FONT : '600 ' + fs + 'px ' + FONT;
+}
+function boxLayout(it, cx, cy) {
+  const rows = rowsFor(it);
+  if (!rows.length) return null;
+  const m = met(it), out = [];
+  let w = 0, h = 0;
+  for (const [t, st] of rows) {
+    mctx.font = fontFor(st, m.fs);
+    const lh = (st === 's' ? m.fs * 0.74 : m.fs) * 1.22;
+    w = Math.max(w, mctx.measureText(t).width);
+    out.push({ t, st, lh });
+    h += lh;
+  }
+  w += m.pad * 2; h += m.pad * 1.2;
+  let y = cy - h / 2 + m.pad * 0.6;
+  for (const r of out) { r.y = y + r.lh / 2; y += r.lh; }
+  return { x: cx - w / 2, y: cy - h / 2, w, h, rows: out, m };
+}
+/* Position de l'étiquette d'une cote : au milieu si elle tient entre les flèches, sinon à côté du trait.
+   Si l'utilisateur l'a déplacée (ox, oy), sa position est conservée. */
+function labelCenter(it) {
+  const mx = (it.x1 + it.x2) / 2, my = (it.y1 + it.y2) / 2;
+  if (it.ox || it.oy) return { x: mx + it.ox, y: my + it.oy };
+  const b = boxLayout(it, mx, my);
+  if (!b) return { x: mx, y: my };
+  const dx = it.x2 - it.x1, dy = it.y2 - it.y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, m = b.m;
+  if (Math.abs(ux) * b.w + Math.abs(uy) * b.h <= len - 2.4 * Math.min(m.ah, len * 0.35)) return { x: mx, y: my };
+  let nx = -uy, ny = ux;
+  if (ny > 0.01 || (Math.abs(ny) <= 0.01 && nx > 0)) { nx = -nx; ny = -ny; }      // au-dessus (ou à gauche)
+  const d = (Math.abs(nx) * b.w + Math.abs(ny) * b.h) / 2 + m.lw * 2;
+  const c = { x: mx + nx * d, y: my + ny * d };
+  if (c.x - b.w / 2 < 0 || c.y - b.h / 2 < 0 || c.x + b.w / 2 > S.W || c.y + b.h / 2 > S.H) return { x: mx - nx * d, y: my - ny * d };
+  return c;
+}
+const boxOf = it => it.t === 'cote' ? (c => boxLayout(it, c.x, c.y))(labelCenter(it)) : boxLayout(it, it.x, it.y);
+
+/* ---------------- Dessin ---------------- */
+function roundRect(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+const seg = (c, a, b) => { c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); };
+function arrowHead(c, tip, ux, uy, len, half) {      // pointe en « tip », orientée selon (ux, uy)
+  const bx = tip.x - ux * len, by = tip.y - uy * len;
+  c.moveTo(tip.x, tip.y); c.lineTo(bx - uy * half, by + ux * half); c.lineTo(bx + uy * half, by - ux * half); c.closePath();
+}
+function drawBox(c, it, b) {
+  if (!b) return;
+  const m = b.m;
+  roundRect(c, b.x, b.y, b.w, b.h, m.rad);
+  c.fillStyle = it.c; c.fill();
+  c.lineWidth = m.halo; c.strokeStyle = haloFor(it.c); c.stroke();
+  c.fillStyle = inkFor(it.c); c.textAlign = 'center'; c.textBaseline = 'middle';
+  const cx = b.x + b.w / 2;
+  for (const r of b.rows) { c.font = fontFor(r.st, m.fs); c.fillText(r.t, cx, r.y); }
+}
+function drawCote(c, it) {
+  const m = met(it), col = it.c, halo = haloFor(col);
+  const p1 = { x: it.x1, y: it.y1 }, p2 = { x: it.x2, y: it.y2 };
+  const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy);
+  if (len < 1e-6) return;
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const ah = Math.min(m.ah, len * 0.35), aw = ah * m.aw / m.ah, tk = m.tick;
+  const b1 = { x: p1.x + ux * ah * 0.9, y: p1.y + uy * ah * 0.9 }, b2 = { x: p2.x - ux * ah * 0.9, y: p2.y - uy * ah * 0.9 };
+  const lines = () => {
+    c.beginPath(); seg(c, b1, b2);
+    seg(c, { x: p1.x + nx * tk, y: p1.y + ny * tk }, { x: p1.x - nx * tk, y: p1.y - ny * tk });
+    seg(c, { x: p2.x + nx * tk, y: p2.y + ny * tk }, { x: p2.x - nx * tk, y: p2.y - ny * tk });
+  };
+  const heads = () => { c.beginPath(); arrowHead(c, p1, -ux, -uy, ah, aw); arrowHead(c, p2, ux, uy, ah, aw); };
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  c.strokeStyle = halo; c.lineWidth = m.lw + 2 * m.halo; lines(); c.stroke();   // liseré
+  c.lineWidth = 2 * m.halo; heads(); c.stroke();
+  c.strokeStyle = col; c.lineWidth = m.lw; lines(); c.stroke();                // trait
+  c.fillStyle = col; heads(); c.fill();
+  const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }, lc = labelCenter(it);
+  if ((it.ox || it.oy) && Math.hypot(lc.x - mid.x, lc.y - mid.y) > m.fs * 0.6) { // étiquette déplacée : trait de rappel
+    c.beginPath(); seg(c, mid, lc);
+    c.strokeStyle = halo; c.lineWidth = m.lw * 0.6 + 2 * m.halo; c.stroke();
+    c.strokeStyle = col; c.lineWidth = m.lw * 0.6; c.stroke();
+  }
+  drawBox(c, it, boxLayout(it, lc.x, lc.y));
+}
+function drawNote(c, it) {
+  const m = met(it), col = it.c, halo = haloFor(col);
+  if (it.ax != null) {                                                           // flèche vers le point signalé
+    const tip = { x: it.ax, y: it.ay }, from = { x: it.x, y: it.y };
+    const dx = tip.x - from.x, dy = tip.y - from.y, len = Math.hypot(dx, dy);
+    if (len > 1e-6) {
+      const ux = dx / len, uy = dy / len, ah = Math.min(m.ah, len * 0.5), aw = ah * m.aw / m.ah;
+      const base = { x: tip.x - ux * ah * 0.9, y: tip.y - uy * ah * 0.9 };
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); seg(c, from, base); c.strokeStyle = halo; c.lineWidth = m.lw + 2 * m.halo; c.stroke();
+      c.beginPath(); arrowHead(c, tip, ux, uy, ah, aw); c.lineWidth = 2 * m.halo; c.stroke();
+      c.beginPath(); seg(c, from, base); c.strokeStyle = col; c.lineWidth = m.lw; c.stroke();
+      c.beginPath(); arrowHead(c, tip, ux, uy, ah, aw); c.fillStyle = col; c.fill();
+    }
+  }
+  drawBox(c, it, boxLayout(it, it.x, it.y));
+}
+function drawSel(c, it, u) {        // u = unités image par pixel écran
+  c.save();
+  const b = boxOf(it);
+  if (b) {
+    const g = 4 * u;
+    c.setLineDash([6 * u, 4 * u]); c.lineWidth = 2 * u; c.strokeStyle = '#fff';
+    roundRect(c, b.x - g, b.y - g, b.w + 2 * g, b.h + 2 * g, b.m.rad + g); c.stroke();
+    c.setLineDash([]);
+  }
+  const hs = it.t === 'cote' ? [{ x: it.x1, y: it.y1 }, { x: it.x2, y: it.y2 }] : it.ax != null ? [{ x: it.ax, y: it.ay }] : [];
+  for (const h of hs) {
+    c.beginPath(); c.arc(h.x, h.y, 13 * u, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,0.22)'; c.fill();
+    c.lineWidth = 5 * u; c.strokeStyle = 'rgba(0,0,0,0.55)'; c.stroke();
+    c.lineWidth = 2.5 * u; c.strokeStyle = '#fff'; c.stroke();
+    c.beginPath(); c.arc(h.x, h.y, 2.5 * u, 0, Math.PI * 2); c.fillStyle = '#fff'; c.fill();
+  }
+  c.restore();
+}
+/* Dessine la photo et ses annotations ; (s, ox, oy) = passage image → pixels du canvas */
+function drawScene(c, s, ox, oy, o) {
+  c.setTransform(s, 0, 0, s, ox, oy);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(S.img, 0, 0);
+  for (const it of S.items) (it.t === 'cote' ? drawCote : drawNote)(c, it);
+  if (o.temp) (o.temp.t === 'cote' ? drawCote : drawNote)(c, o.temp);
+  if (o.sel) drawSel(c, o.sel, o.u);
+}
+
+let raf = 0, loupe = null, act = null, pinch = null;
+function requestRender() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0a0d10'; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (!S.img) return;
+  const temp = act && act.temp;
+  drawScene(ctx, S.v.s * dpr, S.v.x * dpr, S.v.y * dpr, { temp, sel: getSel(), u: 1 / S.v.s });
+  if (loupe) drawLoupe(temp);
+}
+
+/* Loupe de précision affichée au-dessus du doigt */
+const LR = 64;
+function setLoupe(finger, focus) {
+  let cx = finger.x, cy = finger.y - LR - 56;
+  if (cy - LR < 6) {
+    cy = clamp(finger.y, LR + 6, SH - LR - 6);
+    cx = finger.x < SW / 2 ? finger.x + LR + 56 : finger.x - LR - 56;
+  }
+  loupe = { cx: clamp(cx, LR + 6, SW - LR - 6), cy, fx: focus.x, fy: focus.y };
+}
+function drawLoupe(temp) {
+  const L = loupe, z = clamp(S.v.s * 3, 0.3, 8);
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.beginPath(); ctx.arc(L.cx, L.cy, LR, 0, Math.PI * 2); ctx.fillStyle = '#0a0d10'; ctx.fill(); ctx.clip();
+  drawScene(ctx, z * dpr, (L.cx - L.fx * z) * dpr, (L.cy - L.fy * z) * dpr, { temp, u: 1 / z });
+  ctx.restore();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineCap = 'butt';
+  for (const [col, w] of [['rgba(0,0,0,0.7)', 3], ['#ffffff', 1.2]]) {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath();
+    ctx.moveTo(L.cx - 18, L.cy); ctx.lineTo(L.cx - 5, L.cy); ctx.moveTo(L.cx + 5, L.cy); ctx.lineTo(L.cx + 18, L.cy);
+    ctx.moveTo(L.cx, L.cy - 18); ctx.lineTo(L.cx, L.cy - 5); ctx.moveTo(L.cx, L.cy + 5); ctx.lineTo(L.cx, L.cy + 18);
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(L.cx, L.cy, LR, 0, Math.PI * 2);
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+}
+
+/* ---------------- Vue : cadrage, zoom ---------------- */
+const fitScale = () => Math.min(SW / S.W, SH / S.H);
+function fitView() {
+  const s = fitScale();
+  S.v = { s, x: (SW - S.W * s) / 2, y: (SH - S.H * s) / 2 };
+  S.fitted = true;
+}
+function clampView() {
+  const iw = S.W * S.v.s, ih = S.H * S.v.s, mg = 60;
+  S.v.x = iw <= SW ? (SW - iw) / 2 : clamp(S.v.x, SW - iw - mg, mg);
+  S.v.y = ih <= SH ? (SH - ih) / 2 : clamp(S.v.y, SH - ih - mg, mg);
+}
+function setScale(s, p) {          // zoom autour du point écran p
+  s = clamp(s, fitScale() * 0.9, Math.max(6, fitScale()));
+  const ix = (p.x - S.v.x) / S.v.s, iy = (p.y - S.v.y) / S.v.s;
+  S.v.s = s; S.v.x = p.x - ix * s; S.v.y = p.y - iy * s;
+  S.fitted = false; clampView();
+}
+function resize() {
+  const r = stage.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  SW = r.width; SH = r.height; dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(SW * dpr); cv.height = Math.round(SH * dpr);
+  cv.style.width = SW + 'px'; cv.style.height = SH + 'px';
+  if (S.img) { if (S.fitted) fitView(); else clampView(); }
+  requestRender();
+}
+window.addEventListener('resize', () => { if (S.screen === 'editor') resize(); });
+
+/* ---------------- Annotations : création, sélection, recherche ---------------- */
+const newCote = p => ({ id: uid(), t: 'cote', x1: p.x, y1: p.y, x2: p.x, y2: p.y, mm: null, lab: '', ox: 0, oy: 0, c: S.color, s: S.size });
+const newNote = (box, anchor) => ({ id: uid(), t: 'note', x: box.x, y: box.y, ax: anchor ? anchor.x : null, ay: anchor ? anchor.y : null, txt: '', c: S.color, s: S.size });
+const getSel = () => S.sel ? S.items.find(i => i.id === S.sel) || null : null;
+const snap = () => JSON.stringify(S.items);
+function select(id) { S.sel = id; requestRender(); updateUI(); }
+function removeItem(id) { S.items = S.items.filter(i => i.id !== id); }
+
+function hitTest(p) {               // poignées de l'élément choisi, puis étiquettes
+  const sel = getSel();
+  if (sel) {
+    const hs = sel.t === 'cote' ? [['1', sel.x1, sel.y1], ['2', sel.x2, sel.y2]] : sel.ax != null ? [['a', sel.ax, sel.ay]] : [];
+    let best = null, bd = 30;
+    for (const [w, x, y] of hs) { const d = dist(p, toScr(x, y)); if (d < bd) { bd = d; best = { k: 'handle', it: sel, w }; } }
+    if (best) return best;
+  }
+  for (let i = S.items.length - 1; i >= 0; i--) {
+    const it = S.items[i], b = boxOf(it);
+    if (!b) continue;
+    const a = toScr(b.x, b.y), z = toScr(b.x + b.w, b.y + b.h), g = 8;
+    if (p.x >= a.x - g && p.x <= z.x + g && p.y >= a.y - g && p.y <= z.y + g) return { k: 'label', it };
+  }
+  return null;
+}
+function segDist(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+  const t = l2 ? clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+function hitLine(p) {               // touche sur un trait de cote ou de note
+  for (let i = S.items.length - 1; i >= 0; i--) {
+    const it = S.items[i];
+    if (it.t === 'cote' && segDist(p, toScr(it.x1, it.y1), toScr(it.x2, it.y2)) < 20) return it;
+    if (it.t === 'note' && it.ax != null && segDist(p, toScr(it.x, it.y), toScr(it.ax, it.ay)) < 16) return it;
+  }
+  return null;
+}
+
+/* ---------------- Gestes tactiles ---------------- */
+const ptrs = new Map();
+function pt(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+cv.addEventListener('pointerdown', e => {
+  if (!S.img) return;
+  e.preventDefault();
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  ptrs.set(e.pointerId, pt(e));
+  if (ptrs.size === 2) { cancelAct(); startPinch(); return; }
+  if (ptrs.size === 1) startAct(pt(e));
+});
+cv.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, pt(e));
+  if (pinch) movePinch(); else if (act) moveAct(pt(e));
+});
+function onUp(e) {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if (pinch) { if (ptrs.size < 2) { pinch = null; if (S.v.s <= fitScale() * 1.02) fitView(); requestRender(); updateUI(); } return; }
+  if (act) endAct(pt(e), e.type === 'pointercancel');
+}
+cv.addEventListener('pointerup', onUp);
+cv.addEventListener('pointercancel', onUp);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => {             // molette (essais sur ordinateur)
+  if (!S.img) return;
+  e.preventDefault();
+  setScale(S.v.s * Math.exp(-e.deltaY * 0.0015), pt(e));
+  if (S.v.s <= fitScale() * 1.02) fitView();
+  requestRender(); updateUI();
+}, { passive: false });
+
+function startPinch() {
+  const [a, b] = [...ptrs.values()];
+  pinch = { d0: Math.max(dist(a, b), 1), m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, v0: { ...S.v } };
+}
+function movePinch() {
+  const [a, b] = [...ptrs.values()];
+  const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const s = clamp(pinch.v0.s * dist(a, b) / pinch.d0, fitScale() * 0.9, Math.max(6, fitScale()));
+  const ix = (pinch.m0.x - pinch.v0.x) / pinch.v0.s, iy = (pinch.m0.y - pinch.v0.y) / pinch.v0.s;
+  S.v = { s, x: m.x - ix * s, y: m.y - iy * s };
+  S.fitted = false; clampView(); requestRender();
+}
+
+function startAct(p) {
+  const h = hitTest(p);
+  if (h && h.k === 'handle') {                    // déplacer une extrémité
+    const it = h.it, hp = h.w === 'a' ? { x: it.ax, y: it.ay } : { x: it['x' + h.w], y: it['y' + h.w] }, ip = toImg(p);
+    act = { type: 'handle', it, w: h.w, p0: p, off: { x: hp.x - ip.x, y: hp.y - ip.y }, before: snap(), moved: false };
+    setLoupe(p, hp);
+  } else if (h) {                                 // toucher une étiquette : choisir, modifier ou déplacer
+    const it = h.it;
+    const lc = it.t === 'cote' ? labelCenter(it) : null;
+    act = { type: 'label', it, p0: p, i0: toImg(p), before: snap(), wasSel: S.sel === it.id, moved: false,
+            o0: lc ? { x: lc.x - (it.x1 + it.x2) / 2, y: lc.y - (it.y1 + it.y2) / 2 } : { x: it.x, y: it.y } };
+  } else if (S.tool === 'cote') {                 // tracer une cote
+    const ip = clampImg(toImg(p));
+    act = { type: 'draw', p0: p, temp: newCote(ip), moved: false };
+    setLoupe(p, ip);
+  } else if (S.tool === 'note') {                 // placer une note
+    act = { type: 'note', p0: p, i0: clampImg(toImg(p)), moved: false };
+  } else {                                        // déplacer la vue
+    act = { type: 'pan', p0: p, v0: { ...S.v }, moved: false };
+  }
+  requestRender();
+}
+function moveAct(p) {
+  const a = act;
+  if (!a.moved && dist(p, a.p0) > 8) a.moved = true;
+  if (a.type === 'handle') {
+    const ip = toImg(p), q = clampImg({ x: ip.x + a.off.x, y: ip.y + a.off.y });
+    if (a.w === 'a') { a.it.ax = q.x; a.it.ay = q.y; } else { a.it['x' + a.w] = q.x; a.it['y' + a.w] = q.y; }
+    setLoupe(p, q);
+  } else if (a.type === 'label') {
+    if (!a.moved) return;
+    const ip = toImg(p), dx = ip.x - a.i0.x, dy = ip.y - a.i0.y;
+    if (a.it.t === 'cote') { a.it.ox = a.o0.x + dx; a.it.oy = a.o0.y + dy; }
+    else { const q = clampImg({ x: a.o0.x + dx, y: a.o0.y + dy }); a.it.x = q.x; a.it.y = q.y; }
+  } else if (a.type === 'draw') {
+    const q = clampImg(toImg(p));
+    a.temp.x2 = q.x; a.temp.y2 = q.y;
+    setLoupe(p, q);
+  } else if (a.type === 'note') {
+    if (a.moved) { a.temp = newNote(clampImg(toImg(p)), a.i0); a.temp.txt = '…'; }
+  } else if (a.type === 'pan') {
+    S.v.x = a.v0.x + p.x - a.p0.x; S.v.y = a.v0.y + p.y - a.p0.y;
+    S.fitted = false; clampView();
+  }
+  requestRender();
+}
+function cancelAct() {
+  if (act && (act.type === 'handle' || act.type === 'label') && act.moved) S.items = JSON.parse(act.before);
+  act = null; loupe = null; requestRender();
+}
+function endAct(p, cancelled) {
+  const a = act;
+  act = null; loupe = null;
+  if (cancelled) { if ((a.type === 'handle' || a.type === 'label') && a.moved) S.items = JSON.parse(a.before); requestRender(); return; }
+  if (a.type === 'handle') {
+    if (a.moved) commit(a.before);
+  } else if (a.type === 'label') {
+    if (a.moved) commit(a.before); else if (a.wasSel) openEdit(a.it); else select(a.it.id);
+  } else if (a.type === 'draw') {
+    const t = a.temp;
+    if (a.moved && dist(toScr(t.x1, t.y1), toScr(t.x2, t.y2)) >= 24) {
+      const before = snap();
+      S.items.push(t); S.sel = t.id;
+      openCote(t, true, before);
+    } else tapSelect(p);
+  } else if (a.type === 'note') {
+    const before = snap();
+    const it = a.temp && dist(p, a.p0) >= 30 ? newNote({ x: a.temp.x, y: a.temp.y }, a.i0) : newNote(a.i0, null);
+    S.items.push(it); S.sel = it.id;
+    openNote(it, true, before);
+  } else if (a.type === 'pan') {
+    if (!a.moved) tapSelect(p);
+  }
+  requestRender(); updateUI();
+}
+function tapSelect(p) { const it = hitLine(p); select(it ? it.id : null); }
+
+/* ---------------- Historique (annuler) ---------------- */
+function pushUndo(s) { S.undo.push(s); if (S.undo.length > 80) S.undo.shift(); }
+function commit(before) { if (snap() !== before) { pushUndo(before); markDirty(); } updateUI(); }
+function undo() {
+  if (!S.undo.length) return;
+  S.items = JSON.parse(S.undo.pop()); S.sel = null;
+  markDirty(); updateUI();
+}
+function markDirty() { S.dirty = true; scheduleSave(); requestRender(); }
+
+/* ---------------- Fenêtres de saisie ---------------- */
+let dlg = null;
+function openEdit(it) { if (it.t === 'cote') openCote(it, false); else openNote(it, false); }
+function openCote(it, isNew, before) {
+  dlg = { it, isNew, before: before || snap() };
+  $('dCoteT').textContent = isNew ? 'Nouvelle cote' : 'Modifier la cote';
+  $('cVal').value = inputVal(it.mm); $('cLab').value = it.lab || ''; $('cErr').textContent = '';
+  $('cDel').hidden = isNew; syncChips();
+  $('dCote').hidden = false; updateUI();
+  $('cVal').focus();
+}
+function okCote() {
+  const mm = parseVal($('cVal').value);
+  if (Number.isNaN(mm)) { $('cErr').textContent = 'Saisissez un nombre, par exemple 1250 ou 12,5.'; return; }
+  if (mm !== null && (mm <= 0 || mm > 1e6)) { $('cErr').textContent = 'La valeur doit être positive (1 000 000 mm au plus).'; return; }
+  dlg.it.mm = mm === null ? null : Math.round(mm * 10) / 10;
+  dlg.it.lab = $('cLab').value.trim().slice(0, 40);
+  const before = dlg.before;
+  if (dlg.isNew) S.sel = null;     // prêt pour la cote suivante (toucher l'étiquette pour la reprendre)
+  closeDlg(); commit(before);
+}
+function openNote(it, isNew, before) {
+  dlg = { it, isNew, before: before || snap() };
+  $('dNoteT').textContent = isNew ? 'Nouvelle note' : 'Modifier la note';
+  $('nTxt').value = it.txt || ''; $('nErr').textContent = ''; $('nDel').hidden = isNew;
+  $('dNote').hidden = false; updateUI();
+  $('nTxt').focus();
+}
+function okNote() {
+  const txt = $('nTxt').value.trim().slice(0, 200);
+  if (!txt) { $('nErr').textContent = 'Saisissez un texte.'; return; }
+  dlg.it.txt = txt;
+  const before = dlg.before;
+  if (dlg.isNew) S.sel = null;
+  closeDlg(); commit(before);
+}
+function closeDlg() {
+  $('dCote').hidden = true; $('dNote').hidden = true; dlg = null;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  requestRender(); updateUI();
+}
+function cancelDlg() { if (dlg && dlg.isNew) { removeItem(dlg.it.id); S.sel = null; } closeDlg(); }
+function deleteDlg() { const before = dlg.before; removeItem(dlg.it.id); S.sel = null; closeDlg(); commit(before); }
+
+function buildChips() {
+  for (const l of QUICK_LABELS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = l;
+    b.addEventListener('click', () => { const i = $('cLab'); i.value = i.value.trim() === l ? '' : l; syncChips(); });
+    $('chips').appendChild(b);
+  }
+}
+function syncChips() { const v = $('cLab').value.trim(); for (const b of $('chips').children) b.classList.toggle('on', b.textContent === v); }
+
+let confRes = null;
+function confirmBox(msg, yes) {
+  return new Promise(res => { confRes = res; $('confMsg').textContent = msg; $('confYes').textContent = yes || 'Continuer'; $('dConf').hidden = false; });
+}
+function closeConf(v) { $('dConf').hidden = true; const r = confRes; confRes = null; if (r) r(v); }
+
+/* ---------------- Style : couleur et taille ---------------- */
+function openStyle() {
+  const sel = getSel(), col = sel ? sel.c : S.color, size = sel ? sel.s : S.size;
+  $('sws').textContent = '';
+  for (const [c, n] of COLORS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'sw' + (c === col ? ' on' : ''); b.style.background = c; b.setAttribute('aria-label', n);
+    b.addEventListener('click', () => setColor(c));
+    $('sws').appendChild(b);
+  }
+  $('segSize').textContent = '';
+  for (const [k, n] of SIZES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = n; if (k === size) b.className = 'on';
+    b.addEventListener('click', () => setSize(k));
+    $('segSize').appendChild(b);
+  }
+  $('pStyle').hidden = false;
+}
+function closeStyle() { $('pStyle').hidden = true; }
+function setColor(c) {
+  S.color = c; savePrefs();
+  const sel = getSel();
+  if (sel && sel.c !== c) { const b = snap(); sel.c = c; commit(b); }
+  openStyle(); updateUI(); requestRender();
+}
+function setSize(k) {
+  S.size = k; savePrefs();
+  const sel = getSel();
+  if (sel && sel.s !== k) { const b = snap(); sel.s = k; commit(b); }
+  openStyle(); requestRender();
+}
+function setUnit(u) { if (S.unit === u) return; S.unit = u; savePrefs(); updateUI(); requestRender(); }
+
+/* ---------------- Interface : états visibles ---------------- */
+function updateUI() {
+  for (const b of document.querySelectorAll('[data-tool]')) b.classList.toggle('on', b.dataset.tool === S.tool);
+  for (const b of document.querySelectorAll('[data-u]')) b.classList.toggle('on', b.dataset.u === S.unit);
+  const sel = getSel();
+  $('dotCur').style.background = sel ? sel.c : S.color;
+  $('ctx').hidden = !sel || !!dlg;
+  if (sel) $('hint').classList.remove('show');
+  $('bUndo').disabled = !S.undo.length;
+  $('bFit').hidden = !S.img || S.fitted;
+}
+let hintT = 0, toastT = 0;
+function showHint(t) {
+  const h = $('hint'); h.textContent = t; h.classList.add('show');
+  clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove('show'), 3800);
+}
+function toast(msg, isErr) {
+  const t = $('toast'); t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), isErr ? 4500 : 3000);
+}
+function busy(msg) { $('busy').hidden = !msg; if (msg) $('busyMsg').textContent = msg; }
+function showScreen(name) {
+  S.screen = name;
+  $('home').hidden = name !== 'home'; $('editor').hidden = name !== 'editor';
+  if (name === 'editor') resize(); else refreshHome();
+}
+
+/* ---------------- Session (reprise après fermeture de l'appli) ---------------- */
+let saveT = 0;
+function scheduleSave() { clearTimeout(saveT); saveT = setTimeout(saveSession, 300); }
+function saveSession() {
+  clearTimeout(saveT);
+  if (!S.url) return;
+  try { localStorage.setItem(SKEY, JSON.stringify({ url: S.url, items: S.items, dirty: S.dirty, ed: S.screen === 'editor', t: Date.now() })); } catch (e) {}
+}
+function readSession() { try { const s = JSON.parse(localStorage.getItem(SKEY)); return s && s.url && Array.isArray(s.items) ? s : null; } catch (e) { return null; } }
+function refreshHome() {
+  const s = native ? readSession() : null;
+  $('bRes').hidden = !s;
+  if (s) {
+    const d = new Date(s.t), n = s.items.length;
+    $('resInfo').textContent = n + ' annotation' + (n > 1 ? 's' : '') + ' · ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + 'h' + pad2(d.getMinutes());
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveSession(); });
+
+/* ---------------- Photo : ouverture ---------------- */
+let loadSeq = 0;
+function openPhoto(bmp, url, items, dirty) {
+  if (S.img && S.img !== bmp && S.img.close) S.img.close();
+  S.img = bmp; S.W = bmp.width; S.H = bmp.height; S.url = url || null;
+  S.items = items || []; S.undo = []; S.sel = null; S.dirty = !!dirty; S.tool = 'cote';
+  showScreen('editor'); fitView(); requestRender(); updateUI();
+  showHint(HINTS.cote);
+  saveSession();
+}
+async function loadUrl(url, items, dirty) {      // photo préparée par l'appli Android
+  const seq = ++loadSeq;
+  busy('Ouverture de la photo…');
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const bmp = await createImageBitmap(await r.blob());
+    if (seq !== loadSeq) { bmp.close(); return; }
+    openPhoto(bmp, url, items, dirty);
+  } catch (e) {
+    if (seq !== loadSeq) return;
+    toast('Impossible d’ouvrir la photo.', true);
+    const s = readSession();
+    if (s && s.url === url) { try { localStorage.removeItem(SKEY); } catch (_) {} }
+    refreshHome();
+  } finally { if (seq === loadSeq) busy(''); }
+}
+async function loadFile(f) {                     // essais dans un navigateur
+  if (!f) return;
+  const seq = ++loadSeq;
+  busy('Ouverture de la photo…');
+  try {
+    let bmp = await createImageBitmap(f);
+    const k = MAX_SIDE / Math.max(bmp.width, bmp.height);
+    if (k < 1) {
+      const b2 = await createImageBitmap(bmp, { resizeWidth: Math.round(bmp.width * k), resizeHeight: Math.round(bmp.height * k), resizeQuality: 'high' });
+      bmp.close(); bmp = b2;
+    }
+    if (seq === loadSeq) openPhoto(bmp, null, [], false);
+  } catch (e) { toast('Format d’image non pris en charge.', true); }
+  finally { if (seq === loadSeq) busy(''); }
+}
+let lastLaunch = 0;
+async function newPhoto(camera) {
+  if (Date.now() - lastLaunch < 1500) return;      // évite d'ouvrir deux fois l'appareil photo
+  const s = readSession();
+  const pending = (S.img && S.dirty && S.items.length) || (s && s.dirty && s.items.length);
+  if (pending && !(await confirmBox('La photo en cours contient des annotations qui n’ont été ni envoyées ni enregistrées. La remplacer quand même ?', 'Remplacer'))) return;
+  lastLaunch = Date.now();
+  if (native) {
+    try { if (camera) native.takePhoto(); else native.pickPhoto(); } catch (e) { toast('Fonction indisponible.', true); }
+  } else {
+    const inp = camera ? $('fCam') : $('fGal');
+    inp.value = ''; inp.click();
+  }
+}
+
+/* ---------------- Export : envoyer ou enregistrer ---------------- */
+function stamp() {
+  const d = new Date();
+  return {
+    file: d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + '_' + pad2(d.getHours()) + 'h' + pad2(d.getMinutes()) + 'm' + pad2(d.getSeconds()),
+    text: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' à ' + pad2(d.getHours()) + 'h' + pad2(d.getMinutes()),
+  };
+}
+async function renderJpeg() {                   // photo + annotations, pleine résolution
+  const c = document.createElement('canvas');
+  c.width = S.W; c.height = S.H;
+  drawScene(c.getContext('2d'), 1, 0, 0, {});
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', JPEG_QUALITY));
+  c.width = c.height = 1;
+  if (!blob) throw new Error('mémoire insuffisante');
+  return blob;
+}
+function toBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function exportPhoto(action) {            // action : 'share' (envoyer) ou 'save' (galerie)
+  if (!S.img || !$('busy').hidden) return;
+  closeStyle();
+  busy(action === 'save' ? 'Enregistrement de la photo…' : 'Préparation de l’envoi…');
+  await nextFrame();
+  try {
+    const blob = await renderJpeg();
+    const st = stamp(), name = 'Photo-cotee_' + st.file + '.jpg', subject = 'Photo cotée du ' + st.text;
+    if (native) {
+      const b64 = await toBase64(blob);
+      if (!native.beginExport(name)) throw new Error('écriture impossible');
+      for (let i = 0; i < b64.length; i += CHUNK) {
+        if (!native.appendExport(b64.slice(i, i + CHUNK))) throw new Error('écriture interrompue');
+      }
+      const r = native.finishExport(action, subject);
+      if (r !== 'ok') throw new Error(r);
+    } else {
+      const file = new File([blob], name, { type: 'image/jpeg' });
+      if (action === 'share' && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: subject });
+      else download(blob, name);
+    }
+    S.dirty = false; saveSession();
+    if (action === 'save') toast(native ? 'Photo enregistrée dans la galerie (album «\u00a0Mesure\u00a0Photo\u00a0»)' : 'Photo téléchargée');
+  } catch (e) {
+    if (!(e && e.name === 'AbortError')) toast('Échec : ' + (e && e.message ? e.message : e), true);
+  } finally { busy(''); }
+}
+
+/* ---------------- Retour (bouton ou geste « retour » d'Android) ---------------- */
+function goHome() { closeStyle(); S.sel = null; S.screen = 'home'; saveSession(); showScreen('home'); }
+function onBack() {
+  if (!$('busy').hidden) return true;
+  if (!$('dConf').hidden) { closeConf(false); return true; }
+  if (dlg) { cancelDlg(); return true; }
+  if (!$('pStyle').hidden) { closeStyle(); return true; }
+  if (S.screen === 'editor') { if (S.sel) select(null); else goHome(); return true; }
+  return false;
+}
+
+/* ---------------- Liaisons ---------------- */
+$('bCam').addEventListener('click', () => newPhoto(true));
+$('bGal').addEventListener('click', () => newPhoto(false));
+$('bRes').addEventListener('click', () => { const s = readSession(); if (s) loadUrl(s.url, s.items, s.dirty); });
+$('fCam').addEventListener('change', e => loadFile(e.target.files[0]));
+$('fGal').addEventListener('change', e => loadFile(e.target.files[0]));
+$('bHome').addEventListener('click', goHome);
+$('bUndo').addEventListener('click', undo);
+$('bSave').addEventListener('click', () => exportPhoto('save'));
+$('bShare').addEventListener('click', () => exportPhoto('share'));
+$('bStyle').addEventListener('click', () => { if ($('pStyle').hidden) openStyle(); else closeStyle(); });
+$('pStyle').addEventListener('click', e => { if (e.target === $('pStyle')) closeStyle(); });
+$('bFit').addEventListener('click', () => { fitView(); requestRender(); updateUI(); });
+$('bEdit').addEventListener('click', () => { const s = getSel(); if (s) openEdit(s); });
+$('bDel').addEventListener('click', () => { const s = getSel(); if (!s) return; const b = snap(); removeItem(s.id); S.sel = null; commit(b); requestRender(); });
+$('bDesel').addEventListener('click', () => select(null));
+$('cOk').addEventListener('click', okCote); $('cNo').addEventListener('click', cancelDlg); $('cDel').addEventListener('click', deleteDlg);
+$('nOk').addEventListener('click', okNote); $('nNo').addEventListener('click', cancelDlg); $('nDel').addEventListener('click', deleteDlg);
+for (const id of ['cVal', 'cLab']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); okCote(); } });
+$('cVal').addEventListener('input', () => { $('cErr').textContent = ''; });
+$('cLab').addEventListener('input', syncChips);
+$('confYes').addEventListener('click', () => closeConf(true));
+$('confNo').addEventListener('click', () => closeConf(false));
+for (const b of document.querySelectorAll('[data-u]')) b.addEventListener('click', () => setUnit(b.dataset.u));
+for (const b of document.querySelectorAll('[data-tool]')) b.addEventListener('click', () => { S.tool = b.dataset.tool; showHint(HINTS[S.tool]); updateUI(); });
+for (const el of document.querySelectorAll('.keep')) el.addEventListener('pointerdown', e => e.preventDefault());  // garde le clavier ouvert
+
+/* ---------------- Fonctions appelées par l'appli Android ---------------- */
+window.MP = {
+  onNativeBusy: on => busy(on ? 'Chargement de la photo…' : ''),
+  onNativePhoto: url => loadUrl(url, [], false),
+  onNativeCancel: () => busy(''),
+  onNativeError: msg => { busy(''); toast(msg || 'Erreur', true); },
+  onBack,
+  _state: S,
+};
+
+/* ---------------- Démarrage ---------------- */
+$('ver').textContent = 'Mesure Photo · v' + VERSION;
+buildChips(); updateUI(); refreshHome();
+const ses = native ? readSession() : null;
+if (ses && ses.ed) loadUrl(ses.url, ses.items, ses.dirty);   // l'appli avait été fermée pendant l'édition
+if (native) { try { native.ready(); } catch (e) {} }
+})();
+</script>
+</body>
+</html>

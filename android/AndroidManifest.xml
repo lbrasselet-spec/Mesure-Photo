@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mesure Photo — manifeste Android. Version : versionCode (entier, +1 à chaque mise à jour) et versionName. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="fr.brasselet.mesurephoto"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <!-- Android 10 minimum ; conçu pour Android 15 (cible actuelle). -->
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35" />
+
+    <!-- Par sécurité pour le moteur WebView : l'appli ne se connecte à aucun serveur,
+         page et photos sont servies depuis le téléphone. Aucune autre permission. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Mesure Photo"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:allowBackup="false"
+        android:largeHeap="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Échange de fichiers avec l'appareil photo et les applis d'envoi (non exporté). -->
+        <provider
+            android:name=".SharedFileProvider"
+            android:authorities="fr.brasselet.mesurephoto.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>
