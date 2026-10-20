@@ -1,0 +1,9 @@
+OK — Installation
+OK — Page de l'appli chargée (Mesure Photo prête — v1.0.3)
+OK — Démarrage : page d'accueil affichée
+OK — Appareil photo ouvert (com.android.camera2/com.android.camera.CaptureActivity)
+OK — Retour dans l'appli après l'appareil photo
+OK — Galerie ouverte (com.google.android.providers.media.module/com.android.providers.media.photopicker.PhotoPickerActivity)
+OK — Retour dans l'appli après la galerie
+OK — Aucun plantage de l'appli
+OK — Aucune erreur JavaScript
